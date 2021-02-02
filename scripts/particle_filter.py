@@ -202,7 +202,21 @@ class ParticleFilter:
         # make all the particle weights sum to 1.0
 
         # TODO
-        particles = self.particle_cloud
+        print("Normalizing particles")
+        total_weight = 0
+        for p in self.particle_cloud:
+            weight = p.w
+            total_weight += weight
+        print("The sum of all weights is", total_weight)
+        if total_weight == 0:
+            print("No points in particle cloud")
+        else:
+            factor = 1.0/total_weight
+            for p in self.particle_cloud:
+                weight = p.w
+                p.w = weight*factor
+            self.publish_particle_cloud()
+
 
 
 
