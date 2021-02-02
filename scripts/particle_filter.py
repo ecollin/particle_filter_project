@@ -207,15 +207,13 @@ class ParticleFilter:
         for p in self.particle_cloud:
             weight = p.w
             total_weight += weight
-        print("The sum of all weights is", total_weight)
         if total_weight == 0:
-            print("No points in particle cloud")
+            print("No points in particle cloud (map wasn't read in?)")
         else:
             factor = 1.0/total_weight
             for p in self.particle_cloud:
                 weight = p.w
                 p.w = weight*factor
-            self.publish_particle_cloud()
 
 
 
