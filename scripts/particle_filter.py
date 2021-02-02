@@ -68,7 +68,7 @@ class ParticleFilter:
     def __init__(self):
 
         # once everything is setup initialized will be set to true
-        self.initialized = False        
+        self.initialized = False
 
 
         # initialize this particle filter node
@@ -95,7 +95,7 @@ class ParticleFilter:
         self.robot_estimate = Pose()
 
         # set threshold values for linear and angular movement before we preform an update
-        self.lin_mvmt_threshold = 0.2        
+        self.lin_mvmt_threshold = 0.2
         self.ang_mvmt_threshold = (np.pi / 6)
 
         self.odom_pose_last_motion_update = None
@@ -128,16 +128,81 @@ class ParticleFilter:
 
 
     def get_map(self, data):
-
+        print("Getting the map")
         self.map = data
+        ## data is an OccupancyGrid object
+        ## data.info gives metadata
+        ## data.data gives list of occupancy probabilities (0-100)
 
-        self.occupancy_field = OccupancyField(data)
+        # They said on the slack this line could be deleted
+        # self.occupancy_field = OccupancyField(data)
 
-    
+
 
     def initialize_particle_cloud(self):
-        
+
         # TODO
+        print("Initializing Particle Cloud")
+        info = self.map.info #metadata
+        map_resolution = info.resolution #(m/cell)
+        map_width = info.width #(cells)
+        map_height = info.height #(cells)
+        map_origin = info.origin
+        map_data = self.map.data #occupancy probability for each cell (tuple)
+        print("Map resolution (meters/cell):", map_resolution)
+        print("Map height (meters)", map_height*map_resolution)
+        print("Map width (meters)", map_width*map_resolution)
+        print("Map Origin is:", map_origin)
+        print("Map data shape is", len(map_data))
+
+        # very simple attempt: do one particle per open cell?
+        initial_particle_set = []
+        count = 0
+        nzero = 0
+        nhundred = 0
+        nminusone = 0
+        for r in range(0, map_width):
+            for c in range(0, map_height):
+                occupancy_prob = map_data[count]
+                if occupancy_prob == 0:
+                    nzero += 1
+                    ## Add a particle: this spot is empty
+                    ## Might need to include something for the origin offset?
+                    ## Also, r and c may need to be swapped
+                    ## Additionally now none of the particles have rotation
+                    x_coord = r * map_resolution
+                    y_coord = c * map_resolution
+                    initial_particle_set.append([x_coord, y_coord, 0])
+                elif occupancy_prob == 100:
+                    nhundred += 1
+                elif occupancy_prob == -1:
+                    nminusone += 1
+                else:
+                    print("Weird probability")
+                count += 1
+        print("The number of 0s:", nzero)
+        print("The number of 100s:", nhundred)
+        print("The number of -1s:", nminusone)
+        ## Should go [[x1,y1,theta1], [x2,y2,theta2],.....]
+
+        ## This code is from the class meeting 06 starter code:
+        for i in range(len(initial_particle_set)):
+            p = Pose()
+            p.position = Point()
+            p.position.x = initial_particle_set[i][0]
+            p.position.y = initial_particle_set[i][1]
+            p.position.z = 0
+            p.orientation = Quaternion()
+            q = quaternion_from_euler(0.0, 0.0, initial_particle_set[i][2])
+            p.orientation.x = q[0]
+            p.orientation.y = q[1]
+            p.orientation.z = q[2]
+            p.orientation.w = q[3]
+
+            # initialize the new particle, where all will have the same weight (1.0)
+            new_particle = Particle(p, 1.0)
+
+            self.particle_cloud.append(new_particle)
 
 
         self.normalize_particles()
@@ -147,8 +212,11 @@ class ParticleFilter:
 
     def normalize_particles(self):
         # make all the particle weights sum to 1.0
-        
+
         # TODO
+        particles = self.particle_cloud
+        number_particles = len(particles)
+        print("The number of particles is", number_particles)
 
 
 
@@ -176,10 +244,8 @@ class ParticleFilter:
 
 
     def resample_particles(self):
-
-        # TODO
-
-
+        # # TODO:
+        print("Todo")
 
     def robot_scan_received(self, data):
 
@@ -192,12 +258,12 @@ class ParticleFilter:
             return
 
         # wait for a little bit for the transform to become avaliable (in case the scan arrives
-        # a little bit before the odom to base_footprint transform was updated) 
+        # a little bit before the odom to base_footprint transform was updated)
         self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
             return
 
-        # calculate the pose of the laser distance sensor 
+        # calculate the pose of the laser distance sensor
         p = PoseStamped(
             header=Header(stamp=rospy.Time(0),
                           frame_id=data.header.frame_id))
@@ -230,7 +296,7 @@ class ParticleFilter:
             curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
             old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
 
-            if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or 
+            if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or
                 np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
                 np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
 
@@ -255,20 +321,20 @@ class ParticleFilter:
 
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
-        
+        print("Todo: estimate robot pose")
         # TODO
 
 
-    
+
     def update_particle_weights_with_measurement_model(self, data):
-
+        print("Todo: update particle weights")
         # TODO
 
 
-        
+
 
     def update_particles_with_motion_model(self):
-
+        print("Todo: update particles with motion")
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
 
@@ -277,17 +343,8 @@ class ParticleFilter:
 
 
 if __name__=="__main__":
-    
+
 
     pf = ParticleFilter()
 
     rospy.spin()
-
-
-
-
-
-
-
-
-
