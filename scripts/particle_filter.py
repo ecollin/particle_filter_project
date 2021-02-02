@@ -152,27 +152,30 @@ class ParticleFilter:
         print("Map resolution (meters/cell):", map_resolution)
         print("Map height (meters)", map_height*map_resolution)
         print("Map width (meters)", map_width*map_resolution)
-        print("Map Origin is:", map_origin)
-        print("Map data shape is", len(map_data))
 
-        # very simple attempt: do one particle per open cell?
+        # simple attempt: do one particle per open cell?
         initial_particle_set = []
         count = 0
+        ## use these to just count what's in the occupancy probability
         nzero = 0
         nhundred = 0
         nminusone = 0
+        ## Angles for each particle created:
+        angle_range = range(0, 360, 90)
         for r in range(0, map_width):
             for c in range(0, map_height):
                 occupancy_prob = map_data[count]
                 if occupancy_prob == 0:
                     nzero += 1
                     ## Add a particle: this spot is empty
-                    ## Might need to include something for the origin offset?
-                    ## Also, r and c may need to be swapped
-                    ## Additionally now none of the particles have rotation
-                    x_coord = r * map_resolution
-                    y_coord = c * map_resolution
-                    initial_particle_set.append([x_coord, y_coord, 0])
+                    ## This must include the origin offset
+                    x_coord = c * map_resolution + map_origin.position.x
+                    y_coord = r * map_resolution + map_origin.position.y
+                    ## Create particles at different angles for each pos:
+                    for a in angle_range:
+                        new_pos = [x_coord, y_coord, a]
+                        #print("Adding a particle at:", new_pos)
+                        initial_particle_set.append(new_pos)
                 elif occupancy_prob == 100:
                     nhundred += 1
                 elif occupancy_prob == -1:
@@ -180,9 +183,9 @@ class ParticleFilter:
                 else:
                     print("Weird probability")
                 count += 1
-        print("The number of 0s:", nzero)
-        print("The number of 100s:", nhundred)
-        print("The number of -1s:", nminusone)
+        print("The number of 0s (empty map cells):", nzero)
+        print("The number of 100s (full map cells):", nhundred)
+        print("The number of -1s (undefined map cells):", nminusone)
         ## Should go [[x1,y1,theta1], [x2,y2,theta2],.....]
 
         ## This code is from the class meeting 06 starter code:
