@@ -152,7 +152,6 @@ class ParticleFilter:
         #print("Map resolution (meters/cell):", map_resolution)
         #print("Map height (meters)", map_height*map_resolution)
         #print("Map width (meters)", map_width*map_resolution)
-
         # simple attempt: do one particle per open cell
         initial_particle_set = []
         count = 0
@@ -161,7 +160,7 @@ class ParticleFilter:
         for r in range(0, map_width):
             for c in range(0, map_height):
                 occupancy_prob = map_data[count]
-                if occupancy_prob == 0:
+                if occupancy_prob == 0:    
                     ## Add a particle: this spot is empty
                     ## This must include the origin offset
                     x_coord = c * map_resolution + map_origin.position.x
@@ -172,9 +171,14 @@ class ParticleFilter:
                         new_pos = [x_coord, y_coord, a]
                         initial_particle_set.append(new_pos)
                 count += 1
-
+        # threshold is how many particles out of 100 to keep
+        # In final draft we will delete and just use them all
+        threshold = 3
         ## This code is from the class meeting 06 starter code:
         for i in range(len(initial_particle_set)):
+            # Randomly eliminiate particles with probability threshold/10
+            if randint(0, 1000) > threshold:
+                continue
             p = Pose()
             p.position = Point()
             p.position.x = initial_particle_set[i][0]
@@ -191,10 +195,13 @@ class ParticleFilter:
             new_particle = Particle(p, 1.0)
 
             self.particle_cloud.append(new_particle)
+        print('created ', len(self.particle_cloud), 'particles')
 
 
         self.normalize_particles()
-
+        # Sleep to ensure that the particle publisher has 
+        # registered. Without this particles may not appear
+        rospy.sleep(1)
         self.publish_particle_cloud()
 
 
@@ -214,6 +221,7 @@ class ParticleFilter:
             for p in self.particle_cloud:
                 weight = p.w
                 p.w = weight*factor
+        print('Done normalizing')
 
 
 
@@ -243,7 +251,13 @@ class ParticleFilter:
 
     def resample_particles(self):
         # # TODO:
-        print("Todo")
+        print('Resampling particles')
+        n = len(self.particle_cloud)
+        particle_weights = [p.w for p in self.particle_cloud]
+        # Sample new particle cloud according to current weights
+        new_cloud = draw_random_sample(self.particle_cloud, particle_weights, n)
+        self.particle_cloud = new_cloud 
+        print('Resampled particles; weights hasve not yet been updated')
 
     def robot_scan_received(self, data):
 
