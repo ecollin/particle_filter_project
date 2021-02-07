@@ -19,6 +19,8 @@ from copy import deepcopy
 
 from random import randint, random
 
+from scipy.stats import norm
+
 
 
 def get_yaw_from_pose(p):
@@ -160,7 +162,7 @@ class ParticleFilter:
         for r in range(0, map_width):
             for c in range(0, map_height):
                 occupancy_prob = map_data[count]
-                if occupancy_prob == 0:    
+                if occupancy_prob == 0:
                     ## Add a particle: this spot is empty
                     ## This must include the origin offset
                     x_coord = c * map_resolution + map_origin.position.x
@@ -199,7 +201,7 @@ class ParticleFilter:
 
 
         self.normalize_particles()
-        # Sleep to ensure that the particle publisher has 
+        # Sleep to ensure that the particle publisher has
         # registered. Without this particles may not appear
         rospy.sleep(1)
         self.publish_particle_cloud()
@@ -256,8 +258,10 @@ class ParticleFilter:
         particle_weights = [p.w for p in self.particle_cloud]
         # Sample new particle cloud according to current weights
         new_cloud = draw_random_sample(self.particle_cloud, particle_weights, n)
-        self.particle_cloud = new_cloud 
+        self.particle_cloud = new_cloud
         print('Resampled particles; weights hasve not yet been updated')
+
+        ## I notice when I move the robot forward the number of particles decreases
 
     def robot_scan_received(self, data):
 
@@ -334,6 +338,28 @@ class ParticleFilter:
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
         print("Todo: estimate robot pose")
+        x_positions = [p.pose.position.x for p in self.particle_cloud]
+        y_positions = [p.pose.position.y for p in self.particle_cloud]
+        angles = [get_yaw_from_pose(p.pose) for p in self.particle_cloud]
+        ## mean and standard deviation of the positions:
+        mux, stdx = norm.fit(x_positions)
+        muy, stdy = norm.fit(y_positions)
+        mua, stda = norm.fit(angles)
+        ## creating the pose from these statistics:
+        p = Pose()
+        p.position = Point()
+        p.position.x = mux
+        p.position.y = muy
+        p.position.z = 0
+        p.orientation = Quaternion()
+        q = quaternion_from_euler(mux, muy, mua)
+        p.orientation.x = q[0]
+        p.orientation.y = q[1]
+        p.orientation.z = q[2]
+        p.orientation.w = q[3]
+        self.robot_estimate = p
+        #print("Estimated position:", p)
+        ## unsure if I should be checking some stdev bounds?
         # TODO
 
 
