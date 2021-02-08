@@ -21,6 +21,9 @@ from random import randint, random
 
 from scipy.stats import norm
 
+## The angle range for each particle created
+angle_range = range(0, 360, 90)
+
 
 
 def get_yaw_from_pose(p):
@@ -157,11 +160,13 @@ class ParticleFilter:
         # simple attempt: do one particle per open cell
         initial_particle_set = []
         count = 0
-        ## Angles for each particle created:
-        angle_range = range(0, 360, 90)
+        threshold = 3
         for r in range(0, map_width):
             for c in range(0, map_height):
                 occupancy_prob = map_data[count]
+                if randint(0, 1000) > threshold:
+                    count += 1
+                    continue
                 if occupancy_prob == 0:
                     ## Add a particle: this spot is empty
                     ## This must include the origin offset
@@ -169,18 +174,19 @@ class ParticleFilter:
                     y_coord = r * map_resolution + map_origin.position.y
                     ## Create particles at different angles for each pos:
                     for a in angle_range:
-                        ## format is [x, y, angle]
-                        new_pos = [x_coord, y_coord, a]
+                        ## format is [x, y, angle(radians)]
+                        new_pos = [x_coord, y_coord, (a*math.pi/180.)]
                         initial_particle_set.append(new_pos)
                 count += 1
         # threshold is how many particles out of 100 to keep
         # In final draft we will delete and just use them all
-        threshold = 3
+        # moved this earlier so each particle has all angles
+        #threshold = 3
         ## This code is from the class meeting 06 starter code:
         for i in range(len(initial_particle_set)):
             # Randomly eliminiate particles with probability threshold/10
-            if randint(0, 1000) > threshold:
-                continue
+            #if randint(0, 1000) > threshold:
+            #    continue
             p = Pose()
             p.position = Point()
             p.position.x = initial_particle_set[i][0]
@@ -358,7 +364,7 @@ class ParticleFilter:
         p.orientation.z = q[2]
         p.orientation.w = q[3]
         self.robot_estimate = p
-        #print("Estimated position:", p)
+        # print("Estimated position:", p)
         ## unsure if I should be checking some stdev bounds?
         # TODO
 
@@ -367,6 +373,7 @@ class ParticleFilter:
     def update_particle_weights_with_measurement_model(self, data):
         print("Todo: update particle weights")
         # TODO
+        #
 
 
 
@@ -375,6 +382,16 @@ class ParticleFilter:
         print("Todo: update particles with motion")
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
+        last_pose = self.odom_pose_last_motion_update.pose
+        current_pose = self.odom_pose.pose
+        delta_x = current_pose.position.x - last_pose.position.x
+        delta_y = current_pose.position.y - last_pose.position.y
+        delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
+        print("delta x:", delta_x)
+        print("delta y:", delta_y)
+        print("delta a:", delta_a)
+        #self.odom_pose_last_motion_update is the last pose
+        #self.odom_pose is the current pose
 
         # TODO
 
