@@ -14,6 +14,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 import numpy as np
 from numpy.random import random_sample
+from numpy.random import normal
 import math
 from copy import deepcopy
 
@@ -172,7 +173,7 @@ class ParticleFilter:
         # simple attempt: do one particle per open cell
         initial_particle_set = []
         count = 0
-        threshold = 3
+        threshold = 100
         for r in range(0, map_width):
             for c in range(0, map_height):
                 occupancy_prob = map_data[count]
@@ -404,7 +405,8 @@ class ParticleFilter:
                 ## sometimes it cannot locate a closest object
                 if math.isnan(closest_obstacle_distance):
                     closest_obstacle_distance = 3.5
-                prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, 0.1)
+                gaussian_std = 5
+                prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, gaussian_std)
                 q = q*prob
             # Now I set the particle's weight to q?
             p.w = q
@@ -425,10 +427,13 @@ class ParticleFilter:
         delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
         ## adjusting particles by these parameters:
         for p in self.particle_cloud:
-            p.pose.position.x += delta_x
-            p.pose.position.y += delta_y
-            theta = get_yaw_from_pose(p.pose)
-            theta += delta_a
+            # args are mean, std, num_particles
+            (x_noise, y_noise) = random(0, 1, 2)
+            ang_noise = random(0, .5, 1)
+            p.pose.position.x += delta_x + x_noise
+            p.pose.position.y += delta_y + y_noise
+            theta = get_yaw_from_pose(p.pose) 
+            theta += delta_a + ang_noise
             q = quaternion_from_euler(p.pose.position.x+delta_x, p.pose.position.y+delta_y, theta)
             p.pose.orientation.x = q[0]
             p.pose.orientation.y = q[1]
