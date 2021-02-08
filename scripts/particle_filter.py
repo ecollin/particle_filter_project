@@ -378,12 +378,15 @@ class ParticleFilter:
         self.robot_estimate = p
         # print("Estimated position:", p)
         ## unsure if I should be checking some stdev bounds?
-        # TODO
 
 
 
     def update_particle_weights_with_measurement_model(self, data):
         print("Updating particle weights")
+        ## I lifted part of this from the class meeting 06 code
+        ## I am unsure of the way I am iterating through the angles --
+        ## since we have multiple particles at the same location I get a lot
+        ## of repeated weights in a row, which seems wrong.
         for p in self.particle_cloud:
             q = 1
             particle_pose = p.pose
@@ -391,26 +394,21 @@ class ParticleFilter:
             theta = get_yaw_from_pose(particle_pose)  ## in radians
             theta_degrees = int(theta*180.0/math.pi)
             closest_object = data.ranges[theta_degrees]
-            #print('theta degrees:', theta_degrees)
-            #print("closest objet:", closest_object)
             for a in angle_range:
                 z_t_k = data.ranges[a]
                 if z_t_k > 3.5:
                     z_t_k = 3.5
-                #print('ztk:', z_t_k)
                 x_z_t_k = particle_pose.position.x + z_t_k*math.cos(theta + (a*math.pi/180.0))
                 y_z_t_k = particle_pose.position.y + z_t_k*math.sin(theta + (a*math.pi/180.0))
-                #print("x and y:", x_z_t_k, y_z_t_k)
                 closest_obstacle_distance = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
-                #print('closest dist:', closest_obstacle_distance)
+                ## sometimes it cannot locate a closest object
                 if math.isnan(closest_obstacle_distance):
                     closest_obstacle_distance = 3.5
                 prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, 0.1)
-                #print('prob:', prob)
                 q = q*prob
-            # set particle's weight to q?
+            # Now I set the particle's weight to q?
             p.w = q
-        print("done updating particle weights")
+        print("Done updating particle weights")
 
 
 
@@ -425,21 +423,19 @@ class ParticleFilter:
         delta_x = current_pose.position.x - last_pose.position.x
         delta_y = current_pose.position.y - last_pose.position.y
         delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
-        #print("delta x:", delta_x)
-        #print("delta y:", delta_y)
-        #print("delta a:", delta_a)
+        ## adjusting particles by these parameters:
         for p in self.particle_cloud:
             p.pose.position.x += delta_x
             p.pose.position.y += delta_y
             theta = get_yaw_from_pose(p.pose)
             theta += delta_a
-            q = quaternion_from_euler(p.pose.position.x+delta_x, p.pose.position.y+delta_y, theta+delta_a)
+            q = quaternion_from_euler(p.pose.position.x+delta_x, p.pose.position.y+delta_y, theta)
             p.pose.orientation.x = q[0]
             p.pose.orientation.y = q[1]
             p.pose.orientation.z = q[2]
             p.pose.orientation.w = q[3]
+        ## I think we may need to include noise in these updates.
 
-        # TODO
 
 
 
