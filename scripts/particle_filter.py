@@ -21,9 +21,18 @@ from random import randint, random
 
 from scipy.stats import norm
 
+from likelihood_field import LikelihoodField
+
 ## The angle range for each particle created
 angle_range = range(0, 360, 90)
 
+## Taken from measurement_update_likelihood_field script
+def compute_prob_zero_centered_gaussian(dist, sd):
+    """ Takes in distance from zero (dist) and standard deviation (sd) for gaussian
+        and returns probability (likelihood) of observation """
+    c = 1.0 / (sd * math.sqrt(2 * math.pi))
+    prob = c * math.exp((-math.pow(dist,2))/(2 * math.pow(sd, 2)))
+    return prob
 
 
 def get_yaw_from_pose(p):
@@ -88,6 +97,9 @@ class ParticleFilter:
         # inialize our map and occupancy field
         self.map = OccupancyGrid()
         self.occupancy_field = None
+
+        # initialize likelihood field
+        self.likelihood_field = LikelihoodField()
 
 
         # the number of particles used in the particle filter
@@ -371,27 +383,61 @@ class ParticleFilter:
 
 
     def update_particle_weights_with_measurement_model(self, data):
-        print("Todo: update particle weights")
-        # TODO
-        #
+        print("Updating particle weights")
+        for p in self.particle_cloud:
+            q = 1
+            particle_pose = p.pose
+            particle_weight = p.w
+            theta = get_yaw_from_pose(particle_pose)  ## in radians
+            theta_degrees = int(theta*180.0/math.pi)
+            closest_object = data.ranges[theta_degrees]
+            #print('theta degrees:', theta_degrees)
+            #print("closest objet:", closest_object)
+            for a in angle_range:
+                z_t_k = data.ranges[a]
+                if z_t_k > 3.5:
+                    z_t_k = 3.5
+                #print('ztk:', z_t_k)
+                x_z_t_k = particle_pose.position.x + z_t_k*math.cos(theta + (a*math.pi/180.0))
+                y_z_t_k = particle_pose.position.y + z_t_k*math.sin(theta + (a*math.pi/180.0))
+                #print("x and y:", x_z_t_k, y_z_t_k)
+                closest_obstacle_distance = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
+                #print('closest dist:', closest_obstacle_distance)
+                if math.isnan(closest_obstacle_distance):
+                    closest_obstacle_distance = 3.5
+                prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, 0.1)
+                #print('prob:', prob)
+                q = q*prob
+            # set particle's weight to q?
+            p.w = q
+        print("done updating particle weights")
 
 
 
 
     def update_particles_with_motion_model(self):
-        print("Todo: update particles with motion")
+        print("Updating particles with motion")
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
         last_pose = self.odom_pose_last_motion_update.pose
         current_pose = self.odom_pose.pose
+        ## changes from the last position:
         delta_x = current_pose.position.x - last_pose.position.x
         delta_y = current_pose.position.y - last_pose.position.y
         delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
-        print("delta x:", delta_x)
-        print("delta y:", delta_y)
-        print("delta a:", delta_a)
-        #self.odom_pose_last_motion_update is the last pose
-        #self.odom_pose is the current pose
+        #print("delta x:", delta_x)
+        #print("delta y:", delta_y)
+        #print("delta a:", delta_a)
+        for p in self.particle_cloud:
+            p.pose.position.x += delta_x
+            p.pose.position.y += delta_y
+            theta = get_yaw_from_pose(p.pose)
+            theta += delta_a
+            q = quaternion_from_euler(p.pose.position.x+delta_x, p.pose.position.y+delta_y, theta+delta_a)
+            p.pose.orientation.x = q[0]
+            p.pose.orientation.y = q[1]
+            p.pose.orientation.z = q[2]
+            p.pose.orientation.w = q[3]
 
         # TODO
 
