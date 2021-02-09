@@ -395,7 +395,7 @@ class ParticleFilter:
             theta = get_yaw_from_pose(particle_pose)  ## in radians
             theta_degrees = int(theta*180.0/math.pi)
             closest_object = data.ranges[theta_degrees]
-            for a in angle_range:
+            for a in range(0, 360, 10):
                 z_t_k = data.ranges[a]
                 if z_t_k > 3.5:
                     continue
@@ -428,10 +428,10 @@ class ParticleFilter:
         ## adjusting particles by these parameters:
         for p in self.particle_cloud:
             # args are mean, std, num_particles for generating gaussian noise
-            (x_noise, y_noise) = normal(0, .1, 2)
+            (x_noise, y_noise) = normal(0, .3, 2)
             ang_noise = normal(0, .1, 1)
             p.pose.position.x += delta_x + x_noise
-            p.pose.position.y += delta_y + y_noise
+            p.pose.position.y += delta_y + y_noise 
             theta = get_yaw_from_pose(p.pose) 
             theta += delta_a + ang_noise
             q = quaternion_from_euler(p.pose.position.x, p.pose.position.y, theta)
