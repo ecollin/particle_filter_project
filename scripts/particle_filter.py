@@ -21,11 +21,9 @@ from copy import deepcopy
 from random import randint, random
 
 from scipy.stats import norm
+from numpy.random import choice
 
 from likelihood_field import LikelihoodField
-
-## The angle range for each particle created
-angle_range = range(0, 360, 90)
 
 ## Taken from measurement_update_likelihood_field script
 def compute_prob_zero_centered_gaussian(dist, sd):
@@ -146,60 +144,55 @@ class ParticleFilter:
 
 
     def get_map(self, data):
-        print("Getting the map")
+        """
+        Takes an OccupancyGrid object (data) and stores it 
+        in self.map. 
+        """
         self.map = data
-        ## data is an OccupancyGrid object
-        ## data.info gives metadata
-        ## data.data gives list of occupancy probabilities (0-100)
 
-        # They said on the slack this line could be deleted
-        # self.occupancy_field = OccupancyField(data)
 
 
 
     def initialize_particle_cloud(self):
-
-        # TODO
-        print("Initializing Particle Cloud")
-        info = self.map.info #metadata
-        map_resolution = info.resolution #(m/cell)
-        map_width = info.width #(cells)
-        map_height = info.height #(cells)
+        info = self.map.info 
+        # map_resolution is in units of m/cell
+        map_resolution = info.resolution 
+        # width and height are in units of cells
+        map_width = info.width 
+        map_height = info.height 
         map_origin = info.origin
-        map_data = self.map.data #occupancy probability for each cell (tuple)
-        #print("Map resolution (meters/cell):", map_resolution)
-        #print("Map height (meters)", map_height*map_resolution)
-        #print("Map width (meters)", map_width*map_resolution)
-        # simple attempt: do one particle per open cell
+        # map_data stores occupancy probability for each cell as a tuple
+        map_data = self.map.data 
         initial_particle_set = []
-        count = 0
+        """
+        Threshold indirectly determines how many particles we use.
+        Each iteration of the loops below we pick a number in [0, 1000] 
+        with uniform probability, and if it is larger than threshold, we ignore
+        the current (r, c) combination and don't make a particle there
+        """
         threshold = 100
+        # Iterate through all locations on the board
         for r in range(0, map_width):
             for c in range(0, map_height):
-                occupancy_prob = map_data[count]
                 if randint(0, 1000) > threshold:
-                    count += 1
                     continue
-                if occupancy_prob == 0:
-                    ## Add a particle: this spot is empty
-                    ## This must include the origin offset
-                    x_coord = c * map_resolution + map_origin.position.x
-                    y_coord = r * map_resolution + map_origin.position.y
-                    ## Create particles at different angles for each pos:
-                    for a in angle_range:
-                        ## format is [x, y, angle(radians)]
-                        new_pos = [x_coord, y_coord, (a*math.pi/180.)]
-                        initial_particle_set.append(new_pos)
-                count += 1
-        # threshold is how many particles out of 100 to keep
-        # In final draft we will delete and just use them all
-        # moved this earlier so each particle has all angles
-        #threshold = 3
-        ## This code is from the class meeting 06 starter code:
+                index = c + r * map_width
+                occupancy_prob = map_data[index]
+                # occupancy_prob is 0 iff location considered is empty
+                if occupancy_prob != 0:
+                    continue
+                # Add a particle: this spot is empty
+                # This must include the origin offset
+                x_coord = c * map_resolution + map_origin.position.x
+                y_coord = r * map_resolution + map_origin.position.y
+                # Create particles at different angles for each pos:
+                for a in range(0, 360, 90):
+                    # format is [x, y, angle(radians)]
+                    new_pos = [x_coord, y_coord, (a*math.pi/180.)]
+                    initial_particle_set.append(new_pos)
+
+        ##This code is from the class meeting 06 starter code:
         for i in range(len(initial_particle_set)):
-            # Randomly eliminiate particles with probability threshold/10
-            #if randint(0, 1000) > threshold:
-            #    continue
             p = Pose()
             p.position = Point()
             p.position.x = initial_particle_set[i][0]
@@ -211,12 +204,11 @@ class ParticleFilter:
             p.orientation.y = q[1]
             p.orientation.z = q[2]
             p.orientation.w = q[3]
-
-            # initialize the new particle, where all will have the same weight (1.0)
+            
+            # Init all particles with weight 1
             new_particle = Particle(p, 1.0)
 
             self.particle_cloud.append(new_particle)
-        print('created ', len(self.particle_cloud), 'particles')
 
 
         self.normalize_particles()
@@ -227,10 +219,10 @@ class ParticleFilter:
 
 
     def normalize_particles(self):
-        # make all the particle weights sum to 1.0
-
-        # TODO
-        print("Normalizing particles")
+        """
+        Normalize the particle cloud such that the sum of particle weights
+        is 1.0
+        """
         total_weight = 0
         for p in self.particle_cloud:
             weight = p.w
@@ -242,13 +234,11 @@ class ParticleFilter:
             for p in self.particle_cloud:
                 weight = p.w
                 p.w = weight*factor
-        print('Done normalizing')
 
 
 
 
     def publish_particle_cloud(self):
-
         particle_cloud_pose_array = PoseArray()
         particle_cloud_pose_array.header = Header(stamp=rospy.Time.now(), frame_id=self.map_topic)
         particle_cloud_pose_array.poses
@@ -271,16 +261,11 @@ class ParticleFilter:
 
 
     def resample_particles(self):
-        # # TODO:
-        print('Resampling particles')
         n = len(self.particle_cloud)
         particle_weights = [p.w for p in self.particle_cloud]
         # Sample new particle cloud according to current weights
         new_cloud = draw_random_sample(self.particle_cloud, particle_weights, n)
         self.particle_cloud = new_cloud
-        print('Resampled particles; weights hasve not yet been updated')
-
-        ## I notice when I move the robot forward the number of particles decreases
 
     def robot_scan_received(self, data):
 
@@ -355,16 +340,15 @@ class ParticleFilter:
 
 
     def update_estimated_robot_pose(self):
-        # based on the particles within the particle cloud, update the robot pose estimate
-        print("Todo: estimate robot pose")
         x_positions = [p.pose.position.x for p in self.particle_cloud]
         y_positions = [p.pose.position.y for p in self.particle_cloud]
         angles = [get_yaw_from_pose(p.pose) for p in self.particle_cloud]
-        ## mean and standard deviation of the positions:
+        # mean and standard deviation of the positions:
+        # (std will go unused)
         mux, stdx = norm.fit(x_positions)
         muy, stdy = norm.fit(y_positions)
         mua, stda = norm.fit(angles)
-        ## creating the pose from these statistics:
+        # creating the pose from these statistics:
         p = Pose()
         p.position = Point()
         p.position.x = mux
@@ -377,55 +361,53 @@ class ParticleFilter:
         p.orientation.z = q[2]
         p.orientation.w = q[3]
         self.robot_estimate = p
-        # print("Estimated position:", p)
-        ## unsure if I should be checking some stdev bounds?
 
 
 
     def update_particle_weights_with_measurement_model(self, data):
-        print("Updating particle weights")
-        ## I lifted part of this from the class meeting 06 code
-        ## I am unsure of the way I am iterating through the angles --
-        ## since we have multiple particles at the same location I get a lot
-        ## of repeated weights in a row, which seems wrong.
+        """
+        Taken from class meeting 06
+        """
         for p in self.particle_cloud:
             q = 1
             particle_pose = p.pose
             particle_weight = p.w
-            theta = get_yaw_from_pose(particle_pose)  ## in radians
+            theta = get_yaw_from_pose(particle_pose)  # (theta is radians)
             theta_degrees = int(theta*180.0/math.pi)
             closest_object = data.ranges[theta_degrees]
+            # Using every 10 degrees seems to be sufficient.
+            # Using more may be more accurate but slower.
             for a in range(0, 360, 10):
                 z_t_k = data.ranges[a]
+                # We ignore angles where the closest object is > 3.5 away
                 if z_t_k > 3.5:
                     continue
                 x_z_t_k = particle_pose.position.x + z_t_k*math.cos(theta + (a*math.pi/180.0))
                 y_z_t_k = particle_pose.position.y + z_t_k*math.sin(theta + (a*math.pi/180.0))
                 closest_obstacle_distance = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
-                ## sometimes it cannot locate a closest object
+                # sometimes it cannot locate a closest object
                 if math.isnan(closest_obstacle_distance):
                     closest_obstacle_distance = 3.5
                 gaussian_std = 0.1
                 prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, gaussian_std)
                 q = q*prob
-            # Now I set the particle's weight to q?
             p.w = q
-        print("Done updating particle weights")
 
 
 
 
     def update_particles_with_motion_model(self):
-        print("Updating particles with motion")
-        # based on the how the robot has moved (calculated from its odometry), we'll  move
-        # all of the particles correspondingly
+        """
+        We move all the particles according to how the robot has moved
+        based on its odometry.
+        """
         last_pose = self.odom_pose_last_motion_update.pose
         current_pose = self.odom_pose.pose
-        ## changes from the last position:
+        # Changes from the last position:
         delta_x = current_pose.position.x - last_pose.position.x
         delta_y = current_pose.position.y - last_pose.position.y
         delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
-        ## adjusting particles by these parameters:
+        # Adjusting particles by these parameters:
         for p in self.particle_cloud:
             # args are mean, std, num_particles for generating gaussian noise
             (x_noise, y_noise) = normal(0, .3, 2)
@@ -439,7 +421,6 @@ class ParticleFilter:
             p.pose.orientation.y = q[1]
             p.pose.orientation.z = q[2]
             p.pose.orientation.w = q[3]
-        ## I think we may need to include noise in these updates.
 
 
 
