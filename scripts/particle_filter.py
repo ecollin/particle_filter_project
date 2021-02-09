@@ -398,7 +398,7 @@ class ParticleFilter:
             for a in angle_range:
                 z_t_k = data.ranges[a]
                 if z_t_k > 3.5:
-                    z_t_k = 3.5
+                    continue
                 x_z_t_k = particle_pose.position.x + z_t_k*math.cos(theta + (a*math.pi/180.0))
                 y_z_t_k = particle_pose.position.y + z_t_k*math.sin(theta + (a*math.pi/180.0))
                 closest_obstacle_distance = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
@@ -428,8 +428,8 @@ class ParticleFilter:
         ## adjusting particles by these parameters:
         for p in self.particle_cloud:
             # args are mean, std, num_particles for generating gaussian noise
-            (x_noise, y_noise) = normal(0, 1, 2)
-            ang_noise = normal(0, .5, 1)
+            (x_noise, y_noise) = normal(0, .2, 2)
+            ang_noise = normal(0, .1, 1)
             p.pose.position.x += delta_x + x_noise
             p.pose.position.y += delta_y + y_noise
             theta = get_yaw_from_pose(p.pose) 
