@@ -405,7 +405,7 @@ class ParticleFilter:
                 ## sometimes it cannot locate a closest object
                 if math.isnan(closest_obstacle_distance):
                     closest_obstacle_distance = 3.5
-                gaussian_std = 5
+                gaussian_std = 0.5
                 prob = compute_prob_zero_centered_gaussian(closest_obstacle_distance, gaussian_std)
                 q = q*prob
             # Now I set the particle's weight to q?
@@ -427,9 +427,9 @@ class ParticleFilter:
         delta_a = get_yaw_from_pose(current_pose)-get_yaw_from_pose(last_pose)
         ## adjusting particles by these parameters:
         for p in self.particle_cloud:
-            # args are mean, std, num_particles
-            (x_noise, y_noise) = random(0, 1, 2)
-            ang_noise = random(0, .5, 1)
+            # args are mean, std, num_particles for generating gaussian noise
+            (x_noise, y_noise) = normal(0, 1, 2)
+            ang_noise = normal(0, .5, 1)
             p.pose.position.x += delta_x + x_noise
             p.pose.position.y += delta_y + y_noise
             theta = get_yaw_from_pose(p.pose) 
