@@ -24,7 +24,7 @@ Our plan is to, starting from the first task tomorrow, complete a task every oth
 ====================================================================================================================================================================
 # Writeup
 ## Gif
-![gif1](pvideo.gif)
+![gif1](particle_filter.gif)
 
 
 ## Objectives description (2-3 sentences): Describe the goal of this project
