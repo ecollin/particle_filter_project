@@ -214,7 +214,7 @@ class ParticleFilter:
         self.normalize_particles()
         # Sleep to ensure that the particle publisher has
         # registered. Without this particles may not appear
-        rospy.sleep(1)
+        rospy.sleep(2)
         self.publish_particle_cloud()
 
 
