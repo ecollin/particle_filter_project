@@ -23,6 +23,9 @@ We will make sure the number of particles is very large. This will ensure that t
 Our plan is to, starting from the first task tomorrow, complete a task every other day. There are 5 tasks so at this pace we will finish the 5 tasks on February 7, leaving us 3 days to debug and get the robot out of the house. 
 ====================================================================================================================================================================
 # Writeup
+## Gif
+![gif1](pvideo.gif)
+
 
 ## Objectives description (2-3 sentences): Describe the goal of this project
 The goal of this project was to solve the robot localization problem using a particle filter algorithm. More specifically, we had to write code that would determine a robot's position on a given map using its movements and senses. 
